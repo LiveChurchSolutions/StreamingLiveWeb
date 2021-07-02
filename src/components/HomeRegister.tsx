@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ApiHelper, RegisterInterface, RoleInterface, LoginResponseInterface, RolePermissionInterface, ErrorMessages, ChurchInterface, UserInterface, EnvironmentHelper } from ".";
+import { ApiHelper, RegisterInterface, RoleInterface, LoginResponseInterface, RolePermissionInterface, ErrorMessages, ChurchInterface, UserInterface, EnvironmentHelper, PersonInterface } from ".";
 
 export const HomeRegister: React.FC = () => {
   const [email, setEmail] = React.useState("");
@@ -51,11 +51,13 @@ export const HomeRegister: React.FC = () => {
       let church: ChurchInterface = null;
 
       //Create Access
-      church = await createAccess();
-
+      let loginResp = await createAccess();
+      church = loginResp.churches[0]
       if (church != null) {
         btn.innerHTML = "Configuring..."
         let resp: LoginResponseInterface = await ApiHelper.post("/churches/init", { appName: "StreamingLive" }, "StreamingLiveApi");
+        const { person }: { person: PersonInterface} = await ApiHelper.post("/churches/init", { user: loginResp.user }, "MembershipApi");
+        await ApiHelper.post("/userchurch", { personId: person.id }, "AccessApi");
         if (resp.errors !== undefined) { setErrors(resp.errors); return 0; }
         else {
           window.location.href = EnvironmentHelper.SubUrl.replace("{key}", church.subDomain) + "/login/?jwt=" + ApiHelper.getConfig("AccessApi").jwt;
@@ -80,7 +82,7 @@ export const HomeRegister: React.FC = () => {
         const church = response.churches[0];
         church.apis.forEach(api => { ApiHelper.setPermissions(api.keyName, api.jwt, api.permissions) });
         await addHostRole(church, response.user)
-        return church;
+        return resp;
       }
     }
 
